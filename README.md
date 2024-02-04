@@ -1,6 +1,6 @@
 # RTM_Pinger
 
-`RTM_Pinger` is a simple graphical tool for taking a ping test and presenting it in a chart style.
+`RTM_Pinger` -  Response Time Manager. is a simple graphical tool for taking a ping test and presenting it in a chart style.
 
 ## Features
 
