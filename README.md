@@ -11,7 +11,7 @@
 
 ## How to Use
 
-Download `RTM_Pinger` and run the executable file. The graphical interface guides you through the process of initiating pings and analyzing the network's response time charts efficiently.
+Download `RTM_Pinger` and run the executable file. The graphical interface is very easy to use
 
 ## Support
 
