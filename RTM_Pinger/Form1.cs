@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using ZedGraph;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
+using System.IO; // For file operations
 
 namespace RTM_Pinger
 {
@@ -11,6 +12,8 @@ namespace RTM_Pinger
     {
         private Button btnPing;
         private Button btnStopPing;
+        private Button btnSaveGraph; // Save button
+        private Button btnOpenGraph; // Open button
         private TextBox txtHost;
         private Panel panel1;
         private ZedGraphControl zedGraphControl1;
@@ -42,7 +45,7 @@ namespace RTM_Pinger
             btnPing.Size = new Size(75, 23);
             btnPing.Text = "Ping";
             btnPing.Click += new EventHandler(btnPing_Click);
-            btnPing.BackColor = Color.White; // Ustawienie bia³ego t³a
+            btnPing.BackColor = Color.White; // Setting white background
             Controls.Add(btnPing);
 
             // btnStopPing
@@ -52,8 +55,26 @@ namespace RTM_Pinger
             btnStopPing.Text = "Stop";
             btnStopPing.Enabled = false;
             btnStopPing.Click += new EventHandler(btnStopPing_Click);
-            btnStopPing.BackColor = Color.White; // Ustawienie bia³ego t³a
+            btnStopPing.BackColor = Color.White; // Setting white background
             Controls.Add(btnStopPing);
+
+            // btnSaveGraph
+            btnSaveGraph = new Button();
+            btnSaveGraph.Location = new Point(380, 10);
+            btnSaveGraph.Size = new Size(85, 23);
+            btnSaveGraph.Text = "Save Graph";
+            btnSaveGraph.Click += new EventHandler(btnSaveGraph_Click);
+            btnSaveGraph.BackColor = Color.White;
+            Controls.Add(btnSaveGraph);
+
+            // btnOpenGraph
+            btnOpenGraph = new Button();
+            btnOpenGraph.Location = new Point(470, 10);
+            btnOpenGraph.Size = new Size(85, 23);
+            btnOpenGraph.Text = "Open Graph";
+            btnOpenGraph.Click += new EventHandler(btnOpenGraph_Click);
+            btnOpenGraph.BackColor = Color.White;
+            Controls.Add(btnOpenGraph);
 
             // panel1
             panel1 = new Panel();
@@ -87,13 +108,11 @@ namespace RTM_Pinger
             myPane.XAxis.MajorGrid.IsVisible = true;
             myPane.YAxis.MajorGrid.IsVisible = true;
 
-            // Setting the text color to white for visibility
             myPane.Title.FontSpec.FontColor = Color.WhiteSmoke;
             myPane.XAxis.Title.FontSpec.FontColor = Color.WhiteSmoke;
             myPane.YAxis.Title.FontSpec.FontColor = Color.WhiteSmoke;
             myPane.XAxis.Scale.FontSpec.FontColor = Color.WhiteSmoke;
             myPane.YAxis.Scale.FontSpec.FontColor = Color.WhiteSmoke;
-
 
             RollingPointPairList list = new RollingPointPairList(1200);
             myPane.AddCurve("Ping", list, Color.Red, SymbolType.None);
@@ -106,8 +125,13 @@ namespace RTM_Pinger
             isPinging = true;
             btnPing.Enabled = false;
             btnStopPing.Enabled = true;
-            txtHost.Enabled = false; // Disable the textbox to prevent changing the host while pinging
+            txtHost.Enabled = false;
             string host = txtHost.Text;
+
+            // Update the chart title to include the IP address being pinged
+            zedGraphControl1.GraphPane.Title.Text = $"Ping Response Time for {host}";
+            zedGraphControl1.AxisChange();
+
             Ping pingSender = new Ping();
 
             while (isPinging)
@@ -133,7 +157,7 @@ namespace RTM_Pinger
             isPinging = false;
             btnPing.Enabled = true;
             btnStopPing.Enabled = false;
-            txtHost.Enabled = true; // Re-enable the textbox
+            txtHost.Enabled = true;
         }
 
         private void AddDataPoint(long roundtripTime)
@@ -152,26 +176,61 @@ namespace RTM_Pinger
             double time = new XDate(DateTime.Now);
             list.Add(time, roundtripTime);
 
-            // Ustawienie zakresu osi X na ostatnie 30 sekund danych
             GraphPane pane = zedGraphControl1.GraphPane;
-            pane.XAxis.Scale.Max = new XDate(DateTime.Now.AddSeconds(1)); // Add a buffer of 1 second
-            pane.XAxis.Scale.Min = new XDate(DateTime.Now.AddSeconds(-30)); // Show last 30 seconds of data
+            pane.XAxis.Scale.Max = new XDate(DateTime.Now.AddSeconds(1));
+            pane.XAxis.Scale.Min = new XDate(DateTime.Now.AddSeconds(-30));
 
-            // Adjust the Y axis scale if needed
             if (roundtripTime > pane.YAxis.Scale.Max || pane.YAxis.Scale.Max == 1.2)
             {
-                pane.YAxis.Scale.Max = roundtripTime + roundtripTime * 0.1; // Add 10% buffer
+                pane.YAxis.Scale.Max = roundtripTime + roundtripTime * 0.1;
             }
 
             if (roundtripTime < pane.YAxis.Scale.Min || pane.YAxis.Scale.Min == 0)
             {
-                pane.YAxis.Scale.Min = roundtripTime * 0.9; // Subtract 10% if needed, avoid going into negative
+                pane.YAxis.Scale.Min = roundtripTime * 0.9;
             }
 
-            // Make sure the graph is up-to-date
             zedGraphControl1.AxisChange();
             zedGraphControl1.Invalidate();
             zedGraphControl1.Refresh();
+        }
+
+        private void btnSaveGraph_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Filter = "PNG Files (*.png)|*.png";
+            saveFileDialog.DefaultExt = "png";
+            saveFileDialog.AddExtension = true;
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Image graphImage = zedGraphControl1.GraphPane.GetImage();
+                graphImage.Save(saveFileDialog.FileName, System.Drawing.Imaging.ImageFormat.Png);
+            }
+        }
+
+        private void btnOpenGraph_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "PNG Files (*.png)|*.png";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Image graphImage = Image.FromFile(openFileDialog.FileName);
+                Form graphForm = new Form
+                {
+                    Width = 800,
+                    Height = 600
+                };
+                PictureBox pictureBox = new PictureBox
+                {
+                    Dock = DockStyle.Fill,
+                    Image = graphImage,
+                    SizeMode = PictureBoxSizeMode.StretchImage
+                };
+                graphForm.Controls.Add(pictureBox);
+                graphForm.Show();
+            }
         }
     }
 }
